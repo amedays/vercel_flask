@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-def date(path):
+def rss(path):
     class Item():
         '''能够根据指定属性判断item重复'''
 
