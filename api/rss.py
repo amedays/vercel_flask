@@ -40,17 +40,21 @@ def rss(path):
     def get_items_from_xml(tree):
         ''':param xml: xml string\n
         :return: items list'''
+        items = []
         root = tree.documentElement
         channel = root.getElementsByTagName("channel")
         if channel:
             channel = channel[0]
             items = channel.getElementsByTagName("item")
-        return items if items else None
+        return items if items else []
 
     query = parse.parse_qs(parse.urlsplit(request.full_path).query)
     items = []
     first = None
     # 获取模板rss与items
+    if "type" in query:
+        # TODO: 为实现多种可能,应该使用抽象类实现转化的过程
+        pass
     if "rss" in query:
         urls = query["rss"]
         first = get_dom(get_rss_xml(urls[0]))
