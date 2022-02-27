@@ -2,6 +2,7 @@ from flask import Flask, Response, request
 from urllib import parse
 import requests
 from xml.dom import minidom as DOM
+import re
 app = Flask(__name__)
 
 
@@ -30,9 +31,9 @@ def rss(path):
     def get_rss_xml(url: str):
         ''':param url: rss url\n
         :return: xml string'''
-        res = requests.get(url)
+        res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36 QIHU 360SE'})
         return res.text
-
+ 
     def get_dom(xml: str):
         tree = DOM.parseString(xml)
         return tree
@@ -48,14 +49,43 @@ def rss(path):
             items = channel.getElementsByTagName("item")
         return items if items else []
 
-    query = parse.parse_qs(parse.urlsplit(request.full_path).query)
-    items = []
+    def concat_param(param: str):
+        return "?{}=".format(param)
+
+    params = ["rss"]
+    params = [concat_param(param) for param in params]
+    query = "?" + parse.urlsplit(request.full_path).query
+    results = re.findall("\?.*?=", query)
+    n = 0
+    for i in range(0, len(results)):
+        if results[i - n] not in params:
+            del results[i - n]
+            n += 1
     first = None
+    i = 0
+    query_dict = {}
+    while not i + 1 >= len(results):
+        # 依次查找
+        query = re.sub("\\" + results[i], "", query, 1)
+        tail = results[i + 1]
+        pattern = "^.*?\{}".format(tail)
+        value = re.search(pattern, query).group(0)
+        value = re.sub("\\" + tail, "", value)
+        if not tail[1:-1] in query_dict:
+            query_dict[tail[1:-1]] = value
+        elif isinstance(list, query_dict[tail[1:-1]]):
+            query_dict[tail[1:-1]] = query_dict[tail[1:-1]].append(value)
+        else:
+            query_dict[tail[1:-1]] = [query_dict[tail[1:-1]], value]
+        query = query[len(value):]
+        i += 1
+    query_dict[results[-1]] = re.sub("\\" + results[-1], "", query, 1)
     # 获取模板rss与items
     if "type" in query:
         # TODO: 为实现多种可能,应该使用抽象类实现转化的过程
         pass
     if "rss" in query:
+        # TODO: 允许带有参数的链接(不使用库而直接使用'?rss='分割request.full_path,建立list存储?{}=格式从而分割预定的参数)
         urls = query["rss"]
         first = get_dom(get_rss_xml(urls[0]))
         items = [item for item in get_items_from_xml(first)]
